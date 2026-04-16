@@ -1,0 +1,52 @@
+TITLE:
+Deploy Full-Stack Demo App to Railway (Code Complete — Deploy Only) — 18hr Deadline
+
+DESCRIPTION:
+
+I have a fully built demo app (FastAPI + Three.js 3D viewer) that needs to be deployed to Railway and verified working. All code is written, tested, and on GitHub. This is a deployment task, not a coding task.
+
+WHAT THE APP DOES:
+EventPulse lets users upload a venue photo and explore it as an interactive 3D world with cinematic camera flyovers and first-person walkthroughs. Think Google Earth meets a golf course demo.
+
+WHAT'S ALREADY DONE:
+• All 20 files written (2,270 lines of code)
+• Frontend builds successfully (Vite + Three.js)
+• Backend runs (Python FastAPI)
+• Dockerfile written and working
+• Railway deploy config included
+• Fallback 3D scene included (demo works without GPU)
+• Full handoff documentation in the repo
+
+WHAT YOU NEED TO DO:
+1. Clone the GitHub repo (access will be granted)
+2. Deploy to Railway using the included Dockerfile
+3. Set 2 environment variables (PORT, HOST)
+4. Verify the full demo flow works:
+   — Upload screen loads with branding
+   — Dropping an image triggers demo mode
+   — 3D golf course viewer launches
+   — 3 camera phases work (aerial drop-in, flyover, walkthrough)
+   — WASD controls work
+5. Share the live URL + 30-second screen recording
+
+OPTIONAL BONUS:
+Deploy frontend to Vercel for CDN (config file included)
+
+DELIVERABLES:
+• Live Railway URL
+• 30-second screen recording of the working demo
+• Brief notes on any issues
+
+TIMELINE: Must be live within 18 hours of hire.
+ACTUAL WORK TIME: 1–2 hours if you've deployed Docker apps to Railway before.
+
+BUDGET: $150–$250 fixed
+
+SKILLS NEEDED:
+• Railway / PaaS deployment
+• Docker basics
+• FastAPI / Python backend familiarity
+
+TO APPLY: Tell me (1) your Railway/Docker deploy experience, (2) if you can start now, (3) estimated hours to complete.
+
+The repo has a detailed HANDOFF.md with step-by-step deployment instructions, architecture diagram, and troubleshooting guide. This should be very straightforward.
