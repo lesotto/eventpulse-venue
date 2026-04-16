@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EventPulse — Venue Intelligence</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+
+  <!-- ══ UPLOAD SCREEN ══ -->
+  <div id="upload-screen">
+    <div class="intro-logo">Event<span>Pulse</span></div>
+    <div class="intro-subtitle">Venue Intelligence Platform</div>
+    <div class="intro-venue">&#x2B26; The Concession &middot; Senior PGA Tour &#x2B26;</div>
+
+    <div id="drop-zone">
+      <div class="drop-icon">&#x1F4F7;</div>
+      <div class="drop-text">Drop venue photo here</div>
+      <div class="drop-subtext">JPG, PNG up to 20 MB &middot; or click to browse</div>
+    </div>
+
+    <div id="status-area">
+      <div id="upload-progress-bar">
+        <div id="upload-progress-fill"></div>
+      </div>
+      <div id="status-text">Preparing...</div>
+    </div>
+  </div>
+
+  <!-- ══ VIEWER SCREEN ══ -->
+  <div id="viewer-screen">
+    <!-- Three.js canvas appended here by viewer.js -->
+  </div>
+
+  <!-- ══ HUD (built by hud.js, container only) ══ -->
+  <div id="hud"></div>
+
+  <script type="module">
+    import { loadLyraScene, goToPhase, renderer, setHUDCallbacks } from './viewer.js';
+    import {
+      initHUD, updateAltitude, updateMode, showPhaseLabel,
+      setProgress, setPhaseActive, showCrosshair, showDemoBadge
+    } from './hud.js';
+
+    // Wire HUD callbacks into the viewer
+    setHUDCallbacks({
+      updateAltitude,
+      updateMode,
+      showPhaseLabel,
+      setProgress,
+      showCrosshair,
+      setPhaseActive,
+    });
+
+    // Make goToPhase available to HUD buttons
+    window.goToPhase = (n) => {
+      goToPhase(n);
+      setPhaseActive(n);
+    };
+
+    // ── DRAG AND DROP ──
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = 'image/*';
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      dropZone.classList.add('drag-over');
+    });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', () => handleFile(fileInput.files[0]));
+
+    // ── UPLOAD AND PROCESS ──
+    async function handleFile(file) {
+      if (!file) return;
+
+      showStatus('Uploading venue photo...');
+      setUploadProgress(5);
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const uploadRes = await fetch('/api/process-venue', { method: 'POST', body: formData });
+        if (!uploadRes.ok) throw new Error(`Upload failed: ${uploadRes.status}`);
+        const { job_id } = await uploadRes.json();
+        await pollJob(job_id);
+      } catch (err) {
+        console.error('Upload error:', err);
+        showStatus('Connection error — launching demo mode...');
+        await sleep(1500);
+        await launchViewerDemo();
+      }
+    }
+
+    async function pollJob(jobId) {
+      const startTime = Date.now();
+
+      while (true) {
+        await sleep(2000);
+
+        let job;
+        try {
+          const res = await fetch(`/api/job/${jobId}`);
+          job = await res.json();
+        } catch {
+          showStatus('Lost connection — launching demo...');
+          await sleep(1000);
+          await launchViewerDemo();
+          return;
+        }
+
+        const elapsed = Math.round((Date.now() - startTime) / 1000);
+
+        if (job.status === 'queued') {
+          showStatus('Warming up GPU...');
+          setUploadProgress(10);
+        } else if (job.status === 'processing') {
+          const remaining = Math.max(0, 240 - elapsed);
+          showStatus(`Generating 3D world... (~${Math.ceil(remaining / 60)} min remaining)`);
+          const p = Math.min(85, 15 + (elapsed / 240) * 70);
+          setUploadProgress(p);
+        } else if (job.status === 'complete') {
+          showStatus('Loading 3D scene...');
+          setUploadProgress(90);
+          if (job.demo_mode) showDemoBadge(true);
+          await launchViewer(jobId);
+          return;
+        } else if (job.status === 'error') {
+          showStatus('Error — loading sample scene...');
+          await sleep(1500);
+          await launchViewer(jobId);
+          return;
+        }
+      }
+    }
+
+    async function launchViewer(jobId) {
+      setUploadProgress(95);
+      await fadeToViewer();
+
+      initHUD();
+
+      loadLyraScene(
+        jobId,
+        (pct) => setProgress(pct),
+        () => window.goToPhase(0),
+      );
+    }
+
+    async function launchViewerDemo() {
+      setUploadProgress(95);
+      showDemoBadge(true);
+      await fadeToViewer();
+
+      initHUD();
+
+      // No PLY to load — use built-in placeholder scene
+      window.goToPhase(0);
+    }
+
+    async function fadeToViewer() {
+      const uploadScreen = document.getElementById('upload-screen');
+      uploadScreen.style.opacity = '0';
+      uploadScreen.style.transition = 'opacity 1s ease';
+
+      await sleep(800);
+      uploadScreen.style.display = 'none';
+
+      const viewerScreen = document.getElementById('viewer-screen');
+      viewerScreen.style.display = 'block';
+      viewerScreen.appendChild(renderer.domElement);
+    }
+
+    function showStatus(text) {
+      const statusArea = document.getElementById('status-area');
+      statusArea.style.display = 'block';
+      document.getElementById('status-text').textContent = text;
+    }
+
+    function setUploadProgress(pct) {
+      const fill = document.getElementById('upload-progress-fill');
+      if (fill) fill.style.width = pct + '%';
+    }
+
+    function sleep(ms) { return new Promise((r) => setTimeout(r, ms)); }
+  </script>
+</body>
+</html>

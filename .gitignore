@@ -1,0 +1,9 @@
+node_modules/
+frontend/dist/
+.env
+__pycache__/
+*.pyc
+.DS_Store
+# Exclude generated PLY files except the fallback
+*.ply
+!sample_scenes/concession_fallback.ply
